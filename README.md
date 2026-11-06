@@ -52,5 +52,5 @@ Food • Transport • Shopping • Bills • Entertainment • Health • Other
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/spendwise.git
+   git clone https://github.com/neelsoni3/spendwise.git
    cd spendwise
