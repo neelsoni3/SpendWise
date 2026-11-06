@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpendWise</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --card-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            --border-radius: 16px;
+        }
+        body {
+            background: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .btn-primary {
+            background: var(--primary);
+            border: none;
+            border-radius: 10px;
+            font-weight: 500;
+            padding: 0.55rem 1.4rem;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 15px 35px rgba(79,70,229,0.2);
+        }
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        .summary-card .label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+        .badge-category {
+            background: #eef2ff;
+            color: #4f46e5;
+            font-weight: 500;
+            padding: 0.35em 0.8em;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        .offcanvas-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 0;
+        }
+        .btn-pill {
+            border-radius: 30px;
+            padding: 0.4rem 1.2rem;
+            font-weight: 500;
+        }
+        .filter-pills .btn.active-pill {
+            background: var(--primary);
+            color: white;
+        }
+        .filter-pills .btn {
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+        .filter-pills .btn:hover {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
+        <div class="container">
+            <span class="navbar-brand text-white">💰SpendWise</span>
+            <div class="ms-auto">
+                <button class="btn btn-light me-2" data-bs-toggle="offcanvas" data-bs-target="#historyOffcanvas">
+                    📋 Previous Transactions
+                </button>
+                <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#expenseModal">
+                    + Add Expense
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- Today's summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card summary-card p-4">
+                    <h5 class="text-white-50 mb-3">Today's Summary – <span id="todayDate"></span></h5>
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="label">Total Spent</div>
+                            <div class="value" id="todayTotal">₹0</div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="label">Transactions</div>
+                            <div class="value" id="todayCount">0</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="label">Top Category</div>
+                            <div class="value" id="todayTop">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's expense list -->
+        <div class="card">
+            <div class="card-header fw-semibold">📋 Today's Expenses</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="todayTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="noTodayExpenses" class="text-center p-4 text-muted">No expenses for today</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Previous Transactions Offcanvas -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="historyOffcanvas" style="width: 450px;">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">📆 Previous Transactions</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <!-- Filter bar -->
+            <div class="filter-pills d-flex gap-2 mb-3">
+                <button class="btn btn-pill active-pill" onclick="setFilter('day')">Day</button>
+                <button class="btn btn-pill" onclick="setFilter('month')">Month</button>
+                <button class="btn btn-pill" onclick="setFilter('year')">Year</button>
+            </div>
+            <div class="mb-3">
+                <input type="date" id="dayPicker" class="form-control" style="display:block;">
+                <input type="month" id="monthPicker" class="form-control" style="display:none;">
+                <input type="number" id="yearPicker" class="form-control" placeholder="YYYY" min="2000" max="2099" style="display:none;">
+            </div>
+            <button class="btn btn-primary w-100 mb-4" onclick="loadHistory()">Search</button>
+
+            <!-- History summary -->
+            <div class="card bg-light mb-3">
+                <div class="card-body text-center">
+                    <span class="fw-bold">Total Spent: </span><span id="historyTotal">₹0</span>
+                </div>
+            </div>
+
+            <!-- History expense list -->
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Cat</th>
+                            <th>Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <div id="noHistoryExpenses" class="text-center text-muted small">No results</div>
+
+            <!-- Small chart for history period -->
+            <div class="mt-3" style="height: 200px;">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal (same as before, slightly refined) -->
+    <div class="modal fade" id="expenseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow">
+                <form id="expenseForm">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">New Expense</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Date</label>
+                            <input type="date" name="date" class="form-control rounded-3" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Category</label>
+                            <select name="category" class="form-select rounded-3" required>
+                                <option value="">Select category</option>
+                                <option>Food</option>
+                                <option>Transport</option>
+                                <option>Shopping</option>
+                                <option>Bills</option>
+                                <option>Entertainment</option>
+                                <option>Health</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Description (optional)</label>
+                            <input type="text" name="description" class="form-control rounded-3" placeholder="e.g. Grocery">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Amount (₹)</label>
+                            <input type="number" step="0.01" name="amount" class="form-control rounded-3" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary rounded-3">Save Expense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const fmt = n => '₹' + parseFloat(n).toFixed(2);
+        const todayStr = new Date().toISOString().slice(0,10);
+        document.getElementById('todayDate').textContent = todayStr;
+        // Pre-fill today's date in the add modal
+        document.querySelector('#expenseModal input[name="date"]').value = todayStr;
+
+        let historyChart;
+
+        // ========== TODAY'S DASHBOARD ==========
+        async function loadToday() {
+            const res = await fetch(`/api/expenses?date=${todayStr}`);
+            const data = await res.json();
+
+            const total = data.total_spent || 0;
+            const expenses = data.expenses || [];
+            const catTotals = data.category_totals || [];
+
+            document.getElementById('todayTotal').textContent = fmt(total);
+            document.getElementById('todayCount').textContent = expenses.length;
+            if (catTotals.length > 0) {
+                const top = catTotals.reduce((a,b) => a.total > b.total ? a : b);
+                document.getElementById('todayTop').textContent = top.category;
+            } else {
+                document.getElementById('todayTop').textContent = '—';
+            }
+
+            const tbody = document.getElementById('todayTableBody');
+            tbody.innerHTML = '';
+            const noMsg = document.getElementById('noTodayExpenses');
+            if (expenses.length === 0) {
+                noMsg.style.display = 'block';
+            } else {
+                noMsg.style.display = 'none';
+                expenses.forEach(e => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${e.date}</td>
+                            <td><span class="badge-category">${e.category}</span></td>
+                            <td>${e.description || '—'}</td>
+                            <td class="text-end fw-semibold">${fmt(e.amount)}</td>
+                        </tr>`;
+                });
+            }
+        }
+
+        // ========== HISTORY OFF CANVAS ==========
+        let currentFilter = 'day'; // day, month, year
+
+        function setFilter(type) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-pills .btn').forEach(b => b.classList.remove('active-pill'));
+            event.target.classList.add('active-pill');
+
+            document.getElementById('dayPicker').style.display = type === 'day' ? 'block' : 'none';
+            document.getElementById('monthPicker').style.display = type === 'month' ? 'block' : 'none';
+            document.getElementById('yearPicker').style.display = type === 'year' ? 'block' : 'none';
+        }
+
+        async function loadHistory() {
+            let param = '';
+            let value = '';
+
+            if (currentFilter === 'day') {
+                value = document.getElementById('dayPicker').value;
+                if (!value) return alert('Please select a date');
+                param = `date=${value}`;
+            } else if (currentFilter === 'month') {
+                value = document.getElementById('monthPicker').value;
+                if (!value) return alert('Please select a month');
+                param = `month=${value}`;
+            } else if (currentFilter === 'year') {
+                value = document.getElementById('yearPicker').value;
+                if (!value) return alert('Please enter a year');
+                param = `year=${value}`;
+            }
+
+            const res = await fetch(`/api/expenses?${param}`);
+            const data = await res.json();
+
+            const total = data.total_spent || 0;
+            const expenses = data.expenses || [];
+            const catTotals = data.category_totals || [];
+
+            document.getElementById('historyTotal').textContent = fmt(total);
+
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            const noMsg = document.getElementById('noHistoryExpenses');
+            if (expenses.length === 0) {
+                noMsg.style.display = 'block';
+            } else {
+                noMsg.style.display = 'none';
+                expenses.forEach(e => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${e.date}</td>
+                            <td>${e.category}</td>
+                            <td>${fmt(e.amount)}</td>
+                        </tr>`;
+                });
+            }
+
+            // Update history chart
+            if (historyChart) historyChart.destroy();
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            if (catTotals.length === 0) {
+                historyChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['No data'],
+                        datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }]
+                    }
+                });
+            } else {
+                historyChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: catTotals.map(c => c.category),
+                        datasets: [{
+                            data: catTotals.map(c => c.total),
+                            backgroundColor: ['#4f46e5','#7c3aed','#a78bfa','#f59e0b','#10b981','#ef4444']
+                        }]
+                    },
+                    options: { plugins: { legend: { display: false } } }
+                });
+            }
+        }
+
+        // ========== EVENT LISTENERS ==========
+        window.addEventListener('DOMContentLoaded', () => {
+            loadToday();
+            // Set default day picker to today
+            document.getElementById('dayPicker').value = todayStr;
+            document.getElementById('monthPicker').value = todayStr.slice(0,7);
+            document.getElementById('yearPicker').value = todayStr.slice(0,4);
+        });
+
+        // Add expense form
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const res = await fetch('/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                e.target.reset();
+                document.querySelector('#expenseModal input[name="date"]').value = todayStr;
+                bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
+                loadToday(); // refresh today's view
+            }
+        });
+    </script>
+</body>
+</html>
